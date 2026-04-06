@@ -75,6 +75,7 @@ type CMsgClientLogon struct {
 	TwoFactorCode                     *string `protobuf:"bytes,101,opt,name=two_factor_code,json=twoFactorCode" json:"two_factor_code,omitempty"`
 	SupportsRateLimitResponse         *bool   `protobuf:"varint,102,opt,name=supports_rate_limit_response,json=supportsRateLimitResponse" json:"supports_rate_limit_response,omitempty"`
 	WebLogonNonce                     *string `protobuf:"bytes,103,opt,name=web_logon_nonce,json=webLogonNonce" json:"web_logon_nonce,omitempty"`
+	AccessToken                       *string `protobuf:"bytes,108,opt,name=access_token,json=accessToken" json:"access_token,omitempty"`
 	XXX_unrecognized                  []byte  `json:"-"`
 }
 
@@ -414,6 +415,13 @@ func (m *CMsgClientLogon) GetSupportsRateLimitResponse() bool {
 func (m *CMsgClientLogon) GetWebLogonNonce() string {
 	if m != nil && m.WebLogonNonce != nil {
 		return *m.WebLogonNonce
+	}
+	return ""
+}
+
+func (m *CMsgClientLogon) GetAccessToken() string {
+	if m != nil && m.AccessToken != nil {
+		return *m.AccessToken
 	}
 	return ""
 }

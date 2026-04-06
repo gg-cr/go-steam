@@ -45,6 +45,9 @@ type Client struct {
 	handlers      []PacketHandler
 	handlersMutex sync.RWMutex
 
+	JobHandlers map[uint64]func(*Packet) error
+	JobMutex    sync.Mutex
+
 	tempSessionKey []byte
 
 	ConnectionTimeout time.Duration
@@ -62,8 +65,9 @@ type PacketHandler interface {
 
 func NewClient() *Client {
 	client := &Client{
-		events:   make(chan interface{}, 30),
-		writeBuf: new(bytes.Buffer),
+		events:      make(chan interface{}, 30),
+		writeBuf:    new(bytes.Buffer),
+		JobHandlers: make(map[uint64]func(*Packet) error),
 	}
 	client.Auth = &Auth{client: client}
 	client.RegisterPacketHandler(client.Auth)
@@ -270,6 +274,18 @@ func (c *Client) heartbeatLoop(seconds time.Duration) {
 }
 
 func (c *Client) handlePacket(packet *Packet) {
+	c.JobMutex.Lock()
+	fn := c.JobHandlers[uint64(packet.TargetJobId)]
+	if fn != nil {
+		delete(c.JobHandlers, uint64(packet.TargetJobId))
+		c.JobMutex.Unlock()
+		if err := fn(packet); err != nil {
+			c.Fatalf(err.Error())
+		}
+		return
+	}
+	c.JobMutex.Unlock()
+
 	switch packet.EMsg {
 	case EMsg_ChannelEncryptRequest:
 		c.handleChannelEncryptRequest(packet)

@@ -1741,6 +1741,8 @@ const (
 	EMsg_ClientBroadcastUploadConfig                              EMsg = 9704
 	EMsg_ClientVoiceCallPreAuthorize                              EMsg = 9800
 	EMsg_ClientVoiceCallPreAuthorizeResponse                      EMsg = 9801
+	EMsg_ServiceMethodCallFromClientNonAuthed                     EMsg = 9804
+	EMsg_ClientHello                                              EMsg = 9805
 )
 
 var EMsg_name = map[EMsg]string{
@@ -3444,6 +3446,8 @@ var EMsg_name = map[EMsg]string{
 	9704: "EMsg_ClientBroadcastUploadConfig",
 	9800: "EMsg_ClientVoiceCallPreAuthorize",
 	9801: "EMsg_ClientVoiceCallPreAuthorizeResponse",
+	9804: "EMsg_ServiceMethodCallFromClientNonAuthed",
+	9805: "EMsg_ClientHello",
 }
 
 func (e EMsg) String() string {
