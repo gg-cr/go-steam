@@ -1,4 +1,4 @@
-module github.com/paralin/go-steam
+module github.com/gg-cr/go-steam
 
 go 1.24
 

@@ -2,8 +2,8 @@ package tradeapi
 
 import (
 	"encoding/json"
-	"github.com/paralin/go-steam/jsont"
-	"github.com/paralin/go-steam/steamid"
+	"github.com/gg-cr/go-steam/jsont"
+	"github.com/gg-cr/go-steam/steamid"
 	"strconv"
 )
 

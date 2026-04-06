@@ -1,7 +1,7 @@
 package protocol
 
 import (
-	. "github.com/paralin/go-steam/protocol/steamlang"
+	. "github.com/gg-cr/go-steam/protocol/steamlang"
 	"github.com/golang/protobuf/proto"
 	"io"
 )

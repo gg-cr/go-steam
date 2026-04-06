@@ -2,10 +2,10 @@ package steam
 
 import (
 	"bytes"
-	. "github.com/paralin/go-steam/protocol"
-	. "github.com/paralin/go-steam/protocol/gamecoordinator"
-	. "github.com/paralin/go-steam/protocol/protobuf"
-	. "github.com/paralin/go-steam/protocol/steamlang"
+	. "github.com/gg-cr/go-steam/protocol"
+	. "github.com/gg-cr/go-steam/protocol/gamecoordinator"
+	. "github.com/gg-cr/go-steam/protocol/protobuf"
+	. "github.com/gg-cr/go-steam/protocol/steamlang"
 	"github.com/golang/protobuf/proto"
 )
 

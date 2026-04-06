@@ -1,7 +1,7 @@
 package steam
 
 import (
-	"github.com/paralin/go-steam/netutil"
+	"github.com/gg-cr/go-steam/netutil"
 )
 
 // When this event is emitted by the Client, the connection is automatically closed.

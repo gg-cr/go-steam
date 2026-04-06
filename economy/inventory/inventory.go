@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/paralin/go-steam/jsont"
+	"github.com/gg-cr/go-steam/jsont"
 	"strconv"
 )
 

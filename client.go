@@ -15,12 +15,12 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/paralin/go-steam/cryptoutil"
-	"github.com/paralin/go-steam/netutil"
-	. "github.com/paralin/go-steam/protocol"
-	. "github.com/paralin/go-steam/protocol/protobuf"
-	. "github.com/paralin/go-steam/protocol/steamlang"
-	"github.com/paralin/go-steam/steamid"
+	"github.com/gg-cr/go-steam/cryptoutil"
+	"github.com/gg-cr/go-steam/netutil"
+	. "github.com/gg-cr/go-steam/protocol"
+	. "github.com/gg-cr/go-steam/protocol/protobuf"
+	. "github.com/gg-cr/go-steam/protocol/steamlang"
+	"github.com/gg-cr/go-steam/steamid"
 )
 
 // Represents a client to the Steam network.

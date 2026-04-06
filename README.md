@@ -38,15 +38,11 @@ A full `BeginAuthSessionViaCredentials` implementation over the CM wire protocol
 
 ## Installation
 
-Add a `replace` directive in your `go.mod`:
-
 ```
-require github.com/paralin/go-steam v0.0.0-20250502043548-f167ff28a93a
-
-replace github.com/paralin/go-steam => github.com/gg-cr/go-steam v0.0.0-20260406174152-96c3a5fd0548
+go get github.com/gg-cr/go-steam
 ```
 
-**Why `replace`?** This fork keeps the original module path (`github.com/paralin/go-steam`) because [go-dota2](https://github.com/paralin/go-dota2) imports it under that path. Go's `replace` is the standard mechanism for forks when downstream dependencies reference the original — there is no way around it without also forking go-dota2.
+Use with our [go-dota2 fork](https://github.com/gg-cr/go-dota2) which imports this module directly.
 
 ## Protobuf conflict with go-dota2
 
@@ -63,8 +59,9 @@ Put this in a package imported via blank import (`_ "yourpkg/protofix"`) as the 
 ## Upstream
 
 - Original: [Philipp15b/go-steam](https://github.com/Philipp15b/go-steam)
-- Paralin fork: [paralin/go-steam](https://github.com/paralin/go-steam)
+- Paralin fork: [paralin/go-steam](https://github.com/paralin/go-steam) (upstream we track)
 - Modern auth reference: [0xAozora/go-steam](https://github.com/0xAozora/go-steam)
+- Our Dota 2 GC fork: [gg-cr/go-dota2](https://github.com/gg-cr/go-dota2)
 
 ## License
 
