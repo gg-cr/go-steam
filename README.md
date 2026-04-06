@@ -44,17 +44,9 @@ go get github.com/gg-cr/go-steam
 
 Use with our [go-dota2 fork](https://github.com/gg-cr/go-dota2) which imports this module directly.
 
-## Protobuf conflict with go-dota2
+## Protobuf extensions
 
-Both go-steam and go-dota2 register protobuf extension field 50000 (`MessageOptions`). If you use both, set this **before any proto packages are imported**:
-
-```go
-func init() {
-    os.Setenv("GOLANG_PROTOBUF_REGISTRATION_CONFLICT", "ignore")
-}
-```
-
-Put this in a package imported via blank import (`_ "yourpkg/protofix"`) as the first import in `main.go`.
+Valve's proto files reuse extension field 50000 across different `.proto` files. The original paralin/go-steam registered these extensions, which conflicted with go-dota2's registrations of the same field numbers. This fork removes the unused extension registrations from `base.pb.go` and the `unified/` package to eliminate the conflict. No `GOLANG_PROTOBUF_REGISTRATION_CONFLICT` workaround is needed.
 
 ## Upstream
 
