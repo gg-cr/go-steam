@@ -7,12 +7,14 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
+	"io"
 	"io/ioutil"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/paralin/go-steam/cryptoutil"
 	"github.com/paralin/go-steam/netutil"
 	. "github.com/paralin/go-steam/protocol"
@@ -199,6 +201,45 @@ func (c *Client) Write(msg IMsg) {
 		cm.SetSessionId(c.SessionId())
 		cm.SetSteamId(SteamId(c.SteamId()))
 	}
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	if c.conn == nil {
+		return
+	}
+	c.writeChan <- msg
+}
+
+// rawClientMsgProtobuf wraps ClientMsgProtobuf and appends extra raw bytes
+// after the proto-marshaled body. Used for fields missing from the descriptor.
+type rawClientMsgProtobuf struct {
+	*ClientMsgProtobuf
+	extraBody []byte
+}
+
+func (r *rawClientMsgProtobuf) Serialize(w io.Writer) error {
+	err := r.Header.Serialize(w)
+	if err != nil {
+		return err
+	}
+	body, err := proto.Marshal(r.Body)
+	if err != nil {
+		return err
+	}
+	body = append(body, r.extraBody...)
+	_, err = w.Write(body)
+	return err
+}
+
+// WriteRaw sends a protobuf message with extra raw bytes appended to the body.
+// This is used when a proto field is missing from the file descriptor and thus
+// silently dropped by proto.Marshal (e.g. CMsgClientLogon.access_token field 108).
+func (c *Client) WriteRaw(eMsg EMsg, body proto.Message, extraBody []byte) {
+	msg := &rawClientMsgProtobuf{
+		ClientMsgProtobuf: NewClientMsgProtobuf(eMsg, body),
+		extraBody:         extraBody,
+	}
+	msg.SetSessionId(c.SessionId())
+	msg.SetSteamId(SteamId(c.SteamId()))
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	if c.conn == nil {

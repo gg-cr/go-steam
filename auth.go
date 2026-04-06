@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -82,9 +83,7 @@ func (a *Auth) LogOn(details *LogOnDetails) {
 
 	logon := new(CMsgClientLogon)
 	logon.AccountName = &details.Username
-	if details.RefreshToken != "" {
-		logon.AccessToken = proto.String(details.RefreshToken)
-	} else {
+	if details.RefreshToken == "" {
 		logon.Password = &details.Password
 	}
 	if details.AuthCode != "" {
@@ -105,7 +104,14 @@ func (a *Auth) LogOn(details *LogOnDetails) {
 
 	atomic.StoreUint64(&a.client.steamId, steamid.NewIdAdv(0, 1, int32(EUniverse_Public), EAccountType_Individual).ToUint64())
 
-	a.client.Write(NewClientMsgProtobuf(EMsg_ClientLogon, logon))
+	if details.RefreshToken != "" {
+		// Field 108 (access_token) was hand-added to CMsgClientLogon but is
+		// missing from the proto file descriptor, so proto.Marshal silently
+		// drops it.  Append the wire encoding manually.
+		a.client.WriteRaw(EMsg_ClientLogon, logon, encodeProtoField(108, []byte(details.RefreshToken)))
+	} else {
+		a.client.Write(NewClientMsgProtobuf(EMsg_ClientLogon, logon))
+	}
 }
 
 func (a *Auth) HandlePacket(packet *Packet) {
@@ -426,4 +432,24 @@ func (a *Auth) handlePollResponse(packet *Packet) error {
 
 	a.LogOn(a.Details)
 	return nil
+}
+
+// encodeProtoField encodes a length-delimited protobuf field (wire type 2).
+func encodeProtoField(fieldNum uint32, data []byte) []byte {
+	tag := (fieldNum << 3) | 2 // wire type 2 = length-delimited
+	var buf []byte
+	// Encode tag as varint
+	for tag >= 0x80 {
+		buf = append(buf, byte(tag)|0x80)
+		tag >>= 7
+	}
+	buf = append(buf, byte(tag))
+	// Encode length as varint
+	l := uint64(len(data))
+	var lenBuf [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(lenBuf[:], l)
+	buf = append(buf, lenBuf[:n]...)
+	// Append data
+	buf = append(buf, data...)
+	return buf
 }
