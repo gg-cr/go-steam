@@ -234,9 +234,6 @@ func (a *Auth) LogOnCredentials(details *LogOnDetails) {
 
 	atomic.StoreUint64(&a.client.steamId, steamid.NewIdAdv(0, 1, int32(EUniverse_Public), EAccountType_Individual).ToUint64())
 
-	hello := &CMsgClientHello{ProtocolVersion: proto.Uint32(MsgClientLogon_CurrentProtocol)}
-	a.client.Write(NewClientMsgProtobuf(EMsg_ClientHello, hello))
-
 	a.Details = details
 	a.getRSAKey(details.Username)
 }
