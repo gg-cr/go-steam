@@ -21,7 +21,7 @@ import (
 
 type Auth struct {
 	client  *Client
-	details *LogOnDetails
+	Details *LogOnDetails
 
 	authSession   *CAuthentication_BeginAuthSessionViaCredentials_Response
 	Authenticator Authenticator
@@ -237,7 +237,7 @@ func (a *Auth) LogOnCredentials(details *LogOnDetails) {
 	hello := &CMsgClientHello{ProtocolVersion: proto.Uint32(MsgClientLogon_CurrentProtocol)}
 	a.client.Write(NewClientMsgProtobuf(EMsg_ClientHello, hello))
 
-	a.details = details
+	a.Details = details
 	a.getRSAKey(details.Username)
 }
 
@@ -280,7 +280,7 @@ func (a *Auth) beginAuthSession(packet *Packet) error {
 	body := new(CAuthentication_GetPasswordRSAPublicKey_Response)
 	_ = packet.ReadProtoMsg(body)
 
-	crypt, err := encryptPassword(a.details.Password, body)
+	crypt, err := encryptPassword(a.Details.Password, body)
 	if err != nil {
 		return err
 	}
@@ -295,7 +295,7 @@ func (a *Auth) beginAuthSession(packet *Packet) error {
 	}
 
 	req := CAuthentication_BeginAuthSessionViaCredentials_Request{
-		AccountName:         &a.details.Username,
+		AccountName:         &a.Details.Username,
 		EncryptedPassword:   &crypt,
 		EncryptionTimestamp: body.Timestamp,
 		Persistence:         ESessionPersistence_k_ESessionPersistence_Persistent.Enum(),
@@ -415,12 +415,12 @@ func (a *Auth) handlePollResponse(packet *Packet) error {
 		return errors.New("AuthSession PollError")
 	}
 
-	a.details.AccessToken = *body.AccessToken
-	a.details.RefreshToken = *body.RefreshToken
+	a.Details.AccessToken = *body.AccessToken
+	a.Details.RefreshToken = *body.RefreshToken
 	if body.NewGuardData != nil {
-		a.details.GuardData = *body.NewGuardData
+		a.Details.GuardData = *body.NewGuardData
 	}
 
-	a.LogOn(a.details)
+	a.LogOn(a.Details)
 	return nil
 }
