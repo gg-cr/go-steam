@@ -82,9 +82,10 @@ func (a *Auth) LogOn(details *LogOnDetails) {
 
 	logon := new(CMsgClientLogon)
 	logon.AccountName = &details.Username
-	logon.Password = &details.Password
 	if details.RefreshToken != "" {
 		logon.AccessToken = proto.String(details.RefreshToken)
+	} else {
+		logon.Password = &details.Password
 	}
 	if details.AuthCode != "" {
 		logon.AuthCode = proto.String(details.AuthCode)
