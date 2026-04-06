@@ -303,6 +303,11 @@ func (a *Auth) beginAuthSession(packet *Packet) error {
 		DeviceDetails:       &deviceDetails,
 	}
 
+	// Pass guard data to skip email code if machine is already trusted
+	if a.Details.GuardData != "" {
+		req.GuardData = &a.Details.GuardData
+	}
+
 	msg := NewClientMsgProtobuf(EMsg_ServiceMethodCallFromClientNonAuthed, &req)
 	jobname := "Authentication.BeginAuthSessionViaCredentials#1"
 	msg.Header.Proto.TargetJobName = &jobname
@@ -326,7 +331,8 @@ func (a *Auth) handleAuthSession(packet *Packet) error {
 	var codeType EAuthSessionGuardType
 	for _, confirmation := range body.AllowedConfirmations {
 		switch *confirmation.ConfirmationType {
-		case EAuthSessionGuardType_k_EAuthSessionGuardType_None:
+		case EAuthSessionGuardType_k_EAuthSessionGuardType_None,
+			EAuthSessionGuardType_k_EAuthSessionGuardType_MachineToken:
 			return a.pollAuthSession()
 		case EAuthSessionGuardType_k_EAuthSessionGuardType_EmailCode:
 			codeType = EAuthSessionGuardType_k_EAuthSessionGuardType_EmailCode
@@ -350,7 +356,6 @@ func (a *Auth) handleAuthSession(packet *Packet) error {
 		case EAuthSessionGuardType_k_EAuthSessionGuardType_DeviceConfirmation:
 		case EAuthSessionGuardType_k_EAuthSessionGuardType_EmailConfirmation:
 		case EAuthSessionGuardType_k_EAuthSessionGuardType_LegacyMachineAuth:
-		case EAuthSessionGuardType_k_EAuthSessionGuardType_MachineToken:
 		case EAuthSessionGuardType_k_EAuthSessionGuardType_Unknown:
 		}
 	}
