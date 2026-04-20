@@ -174,6 +174,36 @@ func (c *Client) ConnectToBind(addr *netutil.PortAddr, local *net.TCPAddr) {
 	go c.writeLoop()
 }
 
+// Dialer matches golang.org/x/net/proxy.Dialer so callers can pass a SOCKS5
+// dialer directly. Any type with Dial(network, addr) (net.Conn, error) works.
+type Dialer interface {
+	Dial(network, address string) (net.Conn, error)
+}
+
+// ConnectToDialer connects to a specific CM server through a custom dialer.
+// This is the only way to route CM traffic through a SOCKS5 proxy: the
+// built-in Connect/ConnectTo/ConnectToBind paths use net.DialTCP, which
+// can't go through a proxy. If dialer is nil, falls back to ConnectTo.
+// If this client is already connected, it is disconnected first.
+func (c *Client) ConnectToDialer(addr *netutil.PortAddr, dialer Dialer) {
+	if dialer == nil {
+		c.ConnectTo(addr)
+		return
+	}
+	c.Disconnect()
+
+	raw, err := dialer.Dial("tcp", fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port))
+	if err != nil {
+		c.Fatalf("Connect failed: %v", err)
+		return
+	}
+	c.conn = newTCPConnection(raw)
+	c.writeChan = make(chan IMsg, 5)
+
+	go c.readLoop()
+	go c.writeLoop()
+}
+
 func (c *Client) Disconnect() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()

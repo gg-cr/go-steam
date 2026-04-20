@@ -24,7 +24,7 @@ type connection interface {
 const tcpConnectionMagic uint32 = 0x31305456 // "VT01"
 
 type tcpConnection struct {
-	conn        *net.TCPConn
+	conn        net.Conn
 	ciph        cipher.Block
 	cipherMutex sync.RWMutex
 }
@@ -38,6 +38,14 @@ func dialTCP(laddr, raddr *net.TCPAddr) (*tcpConnection, error) {
 	return &tcpConnection{
 		conn: conn,
 	}, nil
+}
+
+// newTCPConnection wraps an already-established net.Conn (for example, one
+// dialed through a SOCKS5 proxy) in a Steam tcp framing layer. Used by
+// Client.ConnectToDialer so callers can route CM traffic through any
+// dialer that returns a net.Conn.
+func newTCPConnection(conn net.Conn) *tcpConnection {
+	return &tcpConnection{conn: conn}
 }
 
 func (c *tcpConnection) Read() (*Packet, error) {
