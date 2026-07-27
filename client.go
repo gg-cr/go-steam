@@ -58,10 +58,11 @@ type Client struct {
 	conn      connection
 	writeChan chan IMsg
 	writeBuf  *bytes.Buffer
-	heartbeat *time.Ticker
-	// heartbeatStop is closed by Disconnect to make heartbeatLoop exit. time.Ticker.Stop() does
-	// not close the ticker channel, so the loop cannot detect a stop from the ticker alone and
-	// would otherwise leak one goroutine per connection that reached a successful logon.
+	// heartbeatStop is closed by Disconnect to make heartbeatLoop exit. The loop owns its own
+	// ticker (a stored *time.Ticker would be a field written by the loop and read by Disconnect —
+	// a data race); it stops on this channel because time.Ticker.Stop() does not close the ticker
+	// channel, so the loop could not otherwise detect a stop and would leak one goroutine per
+	// connection that reached a successful logon.
 	heartbeatStop chan struct{}
 }
 
@@ -171,9 +172,11 @@ func (c *Client) ConnectToBind(addr *netutil.PortAddr, local *net.TCPAddr) {
 		c.Fatalf("Connect failed: %v", err)
 		return
 	}
+	c.mutex.Lock()
 	c.conn = conn
 	c.writeChan = make(chan IMsg, 5)
 	c.heartbeatStop = make(chan struct{})
+	c.mutex.Unlock()
 
 	go c.readLoop()
 	go c.writeLoop()
@@ -202,9 +205,11 @@ func (c *Client) ConnectToDialer(addr *netutil.PortAddr, dialer Dialer) {
 		c.Fatalf("Connect failed: %v", err)
 		return
 	}
+	c.mutex.Lock()
 	c.conn = newTCPConnection(raw)
 	c.writeChan = make(chan IMsg, 5)
 	c.heartbeatStop = make(chan struct{})
+	c.mutex.Unlock()
 
 	go c.readLoop()
 	go c.writeLoop()
@@ -220,10 +225,7 @@ func (c *Client) Disconnect() {
 
 	c.conn.Close()
 	c.conn = nil
-	if c.heartbeat != nil {
-		c.heartbeat.Stop()
-	}
-	// Signal the heartbeat goroutine to exit before closing writeChan, so it stops selecting the
+	// Signal the heartbeat goroutine to exit before closing writeChan, so it stops selecting its
 	// ticker (and never writes to a closed writeChan). Guarded so a second Disconnect is a no-op.
 	if c.heartbeatStop != nil {
 		close(c.heartbeatStop)
@@ -348,19 +350,15 @@ func (c *Client) heartbeatLoop(seconds time.Duration) {
 	if stop == nil {
 		return // already disconnected
 	}
-	if c.heartbeat != nil {
-		c.heartbeat.Stop()
-	}
-	c.heartbeat = time.NewTicker(seconds * time.Second)
-	defer func() {
-		c.heartbeat.Stop()
-		c.heartbeat = nil
-	}()
+	// The ticker is local so it is never shared with Disconnect (which would be a data race on a
+	// stored field). The loop stops on `stop`, which Disconnect closes.
+	ticker := time.NewTicker(seconds * time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-stop:
 			return
-		case <-c.heartbeat.C:
+		case <-ticker.C:
 			// Re-check stop before writing so a Disconnect that has already closed writeChan is
 			// never written to.
 			select {

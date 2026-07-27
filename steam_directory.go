@@ -30,7 +30,9 @@ type steamDirectory struct {
 func (sd *steamDirectory) Initialize() error {
 	sd.Lock()
 	defer sd.Unlock()
-	client := new(http.Client)
+	// A bounded timeout: without one, a black-holed api.steampowered.com blocks the caller (and
+	// anything holding a lock across this call) indefinitely.
+	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Get(fmt.Sprintf("https://api.steampowered.com/ISteamDirectory/GetCMList/v1/?cellId=0"))
 	if err != nil {
 		return err
