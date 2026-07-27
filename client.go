@@ -59,6 +59,10 @@ type Client struct {
 	writeChan chan IMsg
 	writeBuf  *bytes.Buffer
 	heartbeat *time.Ticker
+	// heartbeatStop is closed by Disconnect to make heartbeatLoop exit. time.Ticker.Stop() does
+	// not close the ticker channel, so the loop cannot detect a stop from the ticker alone and
+	// would otherwise leak one goroutine per connection that reached a successful logon.
+	heartbeatStop chan struct{}
 }
 
 type PacketHandler interface {
@@ -162,13 +166,14 @@ func (c *Client) ConnectTo(addr *netutil.PortAddr) {
 func (c *Client) ConnectToBind(addr *netutil.PortAddr, local *net.TCPAddr) {
 	c.Disconnect()
 
-	conn, err := dialTCP(local, addr.ToTCPAddr())
+	conn, err := dialTCP(local, addr.ToTCPAddr(), c.ConnectionTimeout)
 	if err != nil {
 		c.Fatalf("Connect failed: %v", err)
 		return
 	}
 	c.conn = conn
 	c.writeChan = make(chan IMsg, 5)
+	c.heartbeatStop = make(chan struct{})
 
 	go c.readLoop()
 	go c.writeLoop()
@@ -199,6 +204,7 @@ func (c *Client) ConnectToDialer(addr *netutil.PortAddr, dialer Dialer) {
 	}
 	c.conn = newTCPConnection(raw)
 	c.writeChan = make(chan IMsg, 5)
+	c.heartbeatStop = make(chan struct{})
 
 	go c.readLoop()
 	go c.writeLoop()
@@ -216,6 +222,12 @@ func (c *Client) Disconnect() {
 	c.conn = nil
 	if c.heartbeat != nil {
 		c.heartbeat.Stop()
+	}
+	// Signal the heartbeat goroutine to exit before closing writeChan, so it stops selecting the
+	// ticker (and never writes to a closed writeChan). Guarded so a second Disconnect is a no-op.
+	if c.heartbeatStop != nil {
+		close(c.heartbeatStop)
+		c.heartbeatStop = nil
 	}
 	close(c.writeChan)
 	c.Emit(&DisconnectedEvent{})
@@ -330,18 +342,35 @@ func (c *Client) writeLoop() {
 }
 
 func (c *Client) heartbeatLoop(seconds time.Duration) {
+	c.mutex.RLock()
+	stop := c.heartbeatStop
+	c.mutex.RUnlock()
+	if stop == nil {
+		return // already disconnected
+	}
 	if c.heartbeat != nil {
 		c.heartbeat.Stop()
 	}
 	c.heartbeat = time.NewTicker(seconds * time.Second)
+	defer func() {
+		c.heartbeat.Stop()
+		c.heartbeat = nil
+	}()
 	for {
-		_, ok := <-c.heartbeat.C
-		if !ok {
-			break
+		select {
+		case <-stop:
+			return
+		case <-c.heartbeat.C:
+			// Re-check stop before writing so a Disconnect that has already closed writeChan is
+			// never written to.
+			select {
+			case <-stop:
+				return
+			default:
+				c.Write(NewClientMsgProtobuf(EMsg_ClientHeartBeat, new(CMsgClientHeartBeat)))
+			}
 		}
-		c.Write(NewClientMsgProtobuf(EMsg_ClientHeartBeat, new(CMsgClientHeartBeat)))
 	}
-	c.heartbeat = nil
 }
 
 func (c *Client) handlePacket(packet *Packet) {
@@ -351,7 +380,7 @@ func (c *Client) handlePacket(packet *Packet) {
 		delete(c.JobHandlers, uint64(packet.TargetJobId))
 		c.JobMutex.Unlock()
 		if err := fn(packet); err != nil {
-			c.Fatalf(err.Error())
+			c.Fatalf("%s", err.Error())
 		}
 		return
 	}

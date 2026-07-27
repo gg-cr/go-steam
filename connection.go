@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/gg-cr/go-steam/cryptoutil"
 	. "github.com/gg-cr/go-steam/protocol"
@@ -29,8 +30,15 @@ type tcpConnection struct {
 	cipherMutex sync.RWMutex
 }
 
-func dialTCP(laddr, raddr *net.TCPAddr) (*tcpConnection, error) {
-	conn, err := net.DialTCP("tcp", laddr, raddr)
+// dialTCP dials raddr, optionally binding to laddr, honouring timeout when it is non-zero. A
+// zero timeout keeps the previous behaviour (the OS default, which can hang a caller for over a
+// minute on a black-holed CM). Callers that must bound the dial set Client.ConnectionTimeout.
+func dialTCP(laddr, raddr *net.TCPAddr, timeout time.Duration) (*tcpConnection, error) {
+	d := net.Dialer{Timeout: timeout}
+	if laddr != nil {
+		d.LocalAddr = laddr
+	}
+	conn, err := d.Dial("tcp", raddr.String())
 	if err != nil {
 		return nil, err
 	}
